@@ -1,0 +1,6 @@
+.env
+*_storage_state.json
+wit_progress.json
+__pycache__/
+*.pyc
+*.log
