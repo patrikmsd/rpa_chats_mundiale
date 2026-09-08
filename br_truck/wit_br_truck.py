@@ -19,6 +19,7 @@ depois que todos terminam, o processo principal une as listas e marca como
 empresas).
 """
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -260,26 +261,7 @@ def finalizar(num_workers):
 
 # ── orquestrador ───────────────────────────────────────────────────────────
 
-def main():
-    parser = argparse.ArgumentParser(description="Pipeline completo da BR TRUCK: login -> workers paralelos -> finalização")
-    parser.add_argument("--worker-id", type=int, default=None,
-                         help=argparse.SUPPRESS)  # uso interno: o proprio script se relança com isso
-    parser.add_argument("--num-workers", type=int, default=3, help="Quantos workers rodar em paralelo (padrão: 3)")
-    parser.add_argument("--headless", dest="headless", action="store_true", default=True,
-                         help="Roda sem abrir janela do navegador (padrão)")
-    parser.add_argument("--no-headless", dest="headless", action="store_false",
-                         help="Abre a janela do navegador (útil pra debugar)")
-    args = parser.parse_args()
-
-    # Modo worker: este processo foi relançado pelo orquestrador pra fazer 1 fatia do trabalho.
-    if args.worker_id is not None:
-        rodar_worker(args.worker_id, args.num_workers, args.headless)
-        return
-
-    # Modo orquestrador: roda o pipeline completo.
-    if not (1 <= args.num_workers):
-        raise SystemExit("--num-workers precisa ser >= 1")
-
+def rodar_pipeline(args):
     inicio_geral = time.time()
 
     fazer_login_e_salvar_sessao()
@@ -301,6 +283,50 @@ def main():
     finalizar(args.num_workers)
 
     print(f"\n[main] Pipeline completo em {time.time() - inicio_geral:.1f}s total")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Pipeline completo da BR TRUCK: login -> workers paralelos -> finalização")
+    parser.add_argument("--worker-id", type=int, default=None,
+                         help=argparse.SUPPRESS)  # uso interno: o proprio script se relança com isso
+    parser.add_argument("--num-workers", type=int, default=3, help="Quantos workers rodar em paralelo (padrão: 3)")
+    parser.add_argument("--headless", dest="headless", action="store_true", default=True,
+                         help="Roda sem abrir janela do navegador (padrão)")
+    parser.add_argument("--no-headless", dest="headless", action="store_false",
+                         help="Abre a janela do navegador (útil pra debugar)")
+    parser.add_argument("--once", action="store_true",
+                         help="Roda só um ciclo e sai (padrão: roda em loop infinito). Usado internamente pelo wit_orquestrador.py.")
+    args = parser.parse_args()
+
+    # Modo worker: este processo foi relançado pelo orquestrador pra fazer 1 fatia do trabalho.
+    if args.worker_id is not None:
+        rodar_worker(args.worker_id, args.num_workers, args.headless)
+        return
+
+    if not (1 <= args.num_workers):
+        raise SystemExit("--num-workers precisa ser >= 1")
+
+    # Modo ciclo único: usado pelo wit_orquestrador.py, que já cuida do loop entre empresas.
+    if args.once:
+        rodar_pipeline(args)
+        return
+
+    # Modo padrão: roda sozinho, em loop infinito, até ser interrompido (Ctrl+C).
+    ciclo = 0
+    print("[main] Rodando em loop infinito. Ctrl+C para parar.\n")
+    try:
+        while True:
+            ciclo += 1
+            print(f"\n{'#' * 60}")
+            print(f"# CICLO {ciclo} — início {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'#' * 60}")
+            try:
+                rodar_pipeline(args)
+            except Exception as e:
+                print(f"[main] ERRO no ciclo {ciclo}: {e}")
+            print(f"# CICLO {ciclo} concluído — fim {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    except KeyboardInterrupt:
+        print(f"\n[main] Interrompido pelo usuário (Ctrl+C) após {ciclo} ciclo(s).")
 
 
 if __name__ == "__main__":

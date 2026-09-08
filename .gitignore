@@ -4,3 +4,6 @@ wit_progress.json
 __pycache__/
 *.pyc
 *.log
+venv/
+.venv/
+*_tickets_worker*.json
