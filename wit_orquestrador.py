@@ -31,7 +31,7 @@ if sys.stdout.encoding != 'utf-8':
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 EMPRESAS = [
-    ("ancore", "wit_ancore.py"),
+   #("ancore", "wit_ancore.py"),
     ("speed", "wit_speed.py"),
     ("valle", "wit_valle.py"),
     ("protege_car", "wit_protege_car.py"),

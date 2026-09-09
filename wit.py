@@ -31,10 +31,13 @@ def parsear_hora_msg(raw):
     """
     Converte o texto do timestamp da última mensagem em (data_str, hora_str).
     Aceita "HH:MM" (assume hoje) ou "DD/MM/AAAA HH:MM".
+    Retorna (None, None) se não conseguir converter ou se raw estiver vazio.
     """
     if not raw:
-        return "", ""
-    raw = raw.strip()
+        return None, None
+    raw = str(raw).strip()
+    if not raw:
+        return None, None
     for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y %H:%M:%S"):
         try:
             dt = datetime.strptime(raw, fmt)
@@ -46,7 +49,7 @@ def parsear_hora_msg(raw):
         datetime.strptime(raw, "%H:%M")
         return date.today().strftime("%Y-%m-%d"), raw
     except ValueError:
-        return "", raw
+        return None, raw or None
 
 
 def parsear_tempo(raw):
@@ -107,7 +110,9 @@ def salvar(conn, registros, empresa):
     for r in registros:
         try:
             cur = conn.cursor()
-            msg_data, msg_hora = parsear_hora_msg(r["ultima_msg_hora"])
+            msg_data, msg_hora = parsear_hora_msg(r.get("ultima_msg_hora"))
+            msg_data = msg_data or None
+            msg_hora = msg_hora or None
             agora = datetime.now()
 
             tempo_segundos = parsear_tempo(r["tempo_atend"])
