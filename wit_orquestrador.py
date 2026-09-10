@@ -48,9 +48,8 @@ def _agora():
 
 def _rodar_uma_vez(pasta, script, num_workers, headless):
     caminho = os.path.join(BASE_DIR, pasta, script)
-    # --once: cada script, sozinho, agora roda em loop infinito por padrão;
-    # o orquestrador precisa de 1 ciclo só por vez pra controlar a sequência entre empresas.
-    cmd = [sys.executable, caminho, "--once", "--num-workers", str(num_workers)]
+    # Cada script roda um ciclo único e sai; o loop contínuo é só daqui.
+    cmd = [sys.executable, caminho, "--num-workers", str(num_workers)]
     cmd += ["--headless"] if headless else ["--no-headless"]
 
     try:

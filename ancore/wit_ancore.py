@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import glob
 import json
 import os
@@ -275,7 +274,7 @@ def main():
     parser.add_argument("--no-headless", dest="headless", action="store_false",
                          help="Abre a janela do navegador (útil pra debugar)")
     parser.add_argument("--once", action="store_true",
-                         help="Roda só um ciclo e sai (padrão: roda em loop infinito). Usado internamente pelo wit_orquestrador.py.")
+                         help=argparse.SUPPRESS)  # aceito so por compatibilidade: o script ja roda 1 ciclo
     args = parser.parse_args()
 
     # Modo worker: este processo foi relançado pelo orquestrador pra fazer 1 fatia do trabalho.
@@ -286,27 +285,9 @@ def main():
     if not (1 <= args.num_workers):
         raise SystemExit("--num-workers precisa ser >= 1")
 
-    # Modo ciclo único: usado pelo wit_orquestrador.py, que já cuida do loop entre empresas.
-    if args.once:
-        rodar_pipeline(args)
-        return
-
-    # Modo padrão: roda sozinho, em loop infinito, até ser interrompido (Ctrl+C).
-    ciclo = 0
-    print("[main] Rodando em loop infinito. Ctrl+C para parar.\n")
-    try:
-        while True:
-            ciclo += 1
-            print(f"\n{'#' * 60}")
-            print(f"# CICLO {ciclo} — início {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print(f"{'#' * 60}")
-            try:
-                rodar_pipeline(args)
-            except Exception as e:
-                print(f"[main] ERRO no ciclo {ciclo}: {e}")
-            print(f"# CICLO {ciclo} concluído — fim {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    except KeyboardInterrupt:
-        print(f"\n[main] Interrompido pelo usuário (Ctrl+C) após {ciclo} ciclo(s).")
+    # O script sempre roda um ciclo unico e sai; o loop continuo e
+    # responsabilidade do wit_orquestrador.py.
+    rodar_pipeline(args)
 
 
 if __name__ == "__main__":
