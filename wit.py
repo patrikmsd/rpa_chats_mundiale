@@ -245,7 +245,11 @@ def ultima_mensagem(page):
 # ── login e navegação (extraído de wit.py) ────────────────────────────────────
 
 def login_e_navegar(browser):
-    page = browser.new_page()
+    # Viewport explícito: no headless o padrão é 1280x720, e nessa largura o
+    # layout colapsa e o menu de produto não fica clicável — o click ficava
+    # esperando 30s e estourava. O resto do pipeline já usa 1920x1080.
+    context = browser.new_context(viewport={"width": 1920, "height": 1080})
+    page = context.new_page()
     page.goto("https://account.withub.ai/login")
     page.fill("#username", WITHUB_USERNAME)
     page.fill("#password", WITHUB_PASSWORD)
@@ -254,7 +258,7 @@ def login_e_navegar(browser):
     page.wait_for_timeout(5000)
 
     # lida com possível abertura de nova aba
-    pages = browser.contexts[0].pages
+    pages = context.pages
     target = pages[-1] if len(pages) > 1 else page
     if len(pages) > 1:
         print("Nova aba detectada, usando ela.")

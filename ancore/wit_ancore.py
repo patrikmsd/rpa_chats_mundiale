@@ -100,8 +100,9 @@ def abrir_com_sessao_salva(browser, tag):
             storage_state=STORAGE_STATE_FILE,
         )
         page = context.new_page()
-        page.goto(DASHBOARD_URL)
-        page.wait_for_load_state("domcontentloaded")
+        # 3 navegadores subindo juntos deixam o carregamento bem mais lento que
+        # rodando sozinho; 30s (padrao) estourava direto no servidor.
+        page.goto(DASHBOARD_URL, timeout=90000, wait_until="domcontentloaded")
 
         if "login" in page.url:
             print(f"{tag} Sessão salva expirada, caindo pro login completo.")
@@ -240,6 +241,14 @@ def finalizar(num_workers):
 
 # ── orquestrador ───────────────────────────────────────────────────────────
 
+def _limpar_progresso(num_workers):
+    """Descarta os arquivos de tickets de um ciclo que ficou incompleto."""
+    for i in range(num_workers):
+        arq = _tickets_file(i)
+        if os.path.exists(arq):
+            os.remove(arq)
+
+
 def rodar_pipeline(args):
     inicio_geral = time.time()
 
@@ -256,12 +265,26 @@ def rodar_pipeline(args):
         processos.append(proc)
 
     codigos = [proc.wait() for proc in processos]
-    if any(c != 0 for c in codigos):
-        print(f"\n[main] AVISO: worker(s) terminaram com erro (códigos: {codigos}).")
+    falhou = any(c != 0 for c in codigos)
 
-    finalizar(args.num_workers)
+    if falhou:
+        # Cada worker varre uma fatia das paginas. Se algum morreu, os tickets
+        # das paginas dele nao foram coletados -- e finalizar() marcaria todos
+        # eles como 'Finalizado' so por nao estarem na lista. Melhor nao mexer
+        # no banco e deixar o proximo ciclo refazer a coleta inteira.
+        print(f"\n[main] ERRO: worker(s) terminaram com erro (codigos: {codigos}).")
+        print("[main] Pulando a finalizacao: a coleta ficou incompleta e "
+              "fechar tickets com dados parciais corromperia o banco.")
+        _limpar_progresso(args.num_workers)
+    else:
+        finalizar(args.num_workers)
 
     print(f"\n[main] Pipeline completo em {time.time() - inicio_geral:.1f}s total")
+
+    if falhou:
+        # Sai != 0 pra o Cronicle/orquestrador marcarem o job como falho -- antes
+        # o job aparecia como "completed successfully" mesmo com 2 workers mortos.
+        raise SystemExit(1)
 
 
 def main():
